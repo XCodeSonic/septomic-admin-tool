@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://154.7.228.161/septomic-api',
+  baseURL: 'https://xcodeepoints.xyz/septomic-api',
 })
 
 api.interceptors.request.use((config) => {
