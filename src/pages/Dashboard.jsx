@@ -116,8 +116,8 @@ export default function Dashboard() {
               <CardTitle className="flex items-center gap-2 text-[14px]">
                 <CreditCard className="size-[18px] text-[#0071e3]" strokeWidth={1.75} /> EP Cards
               </CardTitle>
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <div className="flex flex-1 items-center gap-1 rounded-lg bg-muted p-1 sm:flex-none">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
                   {[
                     { label: 'All',       val: null },
                     { label: 'Unclaimed', val: 0 },
@@ -137,24 +137,27 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                <select
-                  value={sort}
-                  onChange={(e) => handleSort(e.target.value)}
-                  className="h-8 rounded-md border border-border bg-card px-2 text-xs font-medium text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  {SORT_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={sort}
+                    onChange={(e) => handleSort(e.target.value)}
+                    className="h-8 min-w-0 flex-1 rounded-md border border-border bg-card px-2 text-xs font-medium text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:flex-none"
+                  >
+                    {SORT_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
 
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={fetchCards}
-                  disabled={loading}
-                >
-                  <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
-                </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={fetchCards}
+                    disabled={loading}
+                    className="shrink-0"
+                  >
+                    <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -265,6 +268,7 @@ export default function Dashboard() {
                     className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/60"
                   >
                     <div className="min-w-0">
+                      <p className="font-mono text-[11px] text-[#0071e3]">{card.CardId}</p>
                       <p className="text-[15px] font-semibold tabular-nums text-emerald-600">
                         {Number(card.EPValue).toLocaleString()} EP
                       </p>
