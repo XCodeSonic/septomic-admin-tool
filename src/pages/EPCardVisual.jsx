@@ -16,54 +16,80 @@ const formatDate = (raw) => {
 
 export default function EPCardVisual({ card, onClose }) {
   const canvasRef = useRef(null)
+  const isPortrait = card.Orientation === 'portrait'
+  const themeUrl = card.ThemeFile ? `http://154.7.228.161${card.ThemeFile}` : null
 
   const downloadCard = () => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    const W = 600, H = 340
-    canvas.width = W
-    canvas.height = H
+    // Draw at real template resolution; drawing code below still uses the
+    // original 600x340 coordinate system via ctx.scale().
+    const REAL_W = isPortrait ? 638 : 1013
+    const REAL_H = isPortrait ? 1013 : 638
+    const W = isPortrait ? 340 : 600
+    const H = isPortrait ? 600 : 340
+    canvas.width = REAL_W
+    canvas.height = REAL_H
+    const scale = isPortrait ? REAL_H / H : REAL_W / W
+    ctx.scale(scale, scale)
 
-    // --- Background gradient (dark navy/black like eGaims) ---
-    const bg = ctx.createLinearGradient(0, 0, W, H)
-    bg.addColorStop(0, '#0a0a1a')
-    bg.addColorStop(0.5, '#0d1530')
-    bg.addColorStop(1, '#060610')
-    ctx.fillStyle = bg
-    ctx.roundRect(0, 0, W, H, 20)
-    ctx.fill()
+    const drawOverlayAndSave = () => {
+      // --- Card border ---
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)'
+      ctx.lineWidth = 1.5
+      ctx.roundRect(0, 0, W, H, 20)
+      ctx.stroke()
 
-    // --- Decorative circle glow top-right ---
-    const glow = ctx.createRadialGradient(W - 60, 60, 0, W - 60, 60, 200)
-    glow.addColorStop(0, 'rgba(59,130,246,0.25)')
-    glow.addColorStop(1, 'rgba(59,130,246,0)')
-    ctx.fillStyle = glow
-    ctx.fillRect(0, 0, W, H)
-
-    // --- Bottom left glow ---
-    const glow2 = ctx.createRadialGradient(80, H - 60, 0, 80, H - 60, 180)
-    glow2.addColorStop(0, 'rgba(99,102,241,0.2)')
-    glow2.addColorStop(1, 'rgba(99,102,241,0)')
-    ctx.fillStyle = glow2
-    ctx.fillRect(0, 0, W, H)
-
-    // --- Subtle grid lines ---
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)'
-    ctx.lineWidth = 1
-    for (let x = 0; x < W; x += 40) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
-    }
-    for (let y = 0; y < H; y += 40) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
+      finishDrawing()
     }
 
-    // --- Card border ---
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)'
-    ctx.lineWidth = 1.5
-    ctx.roundRect(0, 0, W, H, 20)
-    ctx.stroke()
+    if (themeUrl) {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        ctx.save()
+        ctx.roundRect(0, 0, W, H, 20)
+        ctx.clip()
+        ctx.drawImage(img, 0, 0, W, H)
+        ctx.restore()
+        drawOverlayAndSave()
+      }
+      img.onerror = () => { drawFallbackBg(); drawOverlayAndSave() }
+      img.src = themeUrl
+      return
+    }
+    drawFallbackBg()
+    drawOverlayAndSave()
 
-    // --- Logo / Brand ---
+    function drawFallbackBg() {
+      const bg = ctx.createLinearGradient(0, 0, W, H)
+      bg.addColorStop(0, '#0a0a1a')
+      bg.addColorStop(0.5, '#0d1530')
+      bg.addColorStop(1, '#060610')
+      ctx.fillStyle = bg
+      ctx.roundRect(0, 0, W, H, 20)
+      ctx.fill()
+
+      const glow = ctx.createRadialGradient(W - 60, 60, 0, W - 60, 60, 200)
+      glow.addColorStop(0, 'rgba(59,130,246,0.25)')
+      glow.addColorStop(1, 'rgba(59,130,246,0)')
+      ctx.fillStyle = glow
+      ctx.fillRect(0, 0, W, H)
+
+      const glow2 = ctx.createRadialGradient(80, H - 60, 0, 80, H - 60, 180)
+      glow2.addColorStop(0, 'rgba(99,102,241,0.2)')
+      glow2.addColorStop(1, 'rgba(99,102,241,0)')
+      ctx.fillStyle = glow2
+      ctx.fillRect(0, 0, W, H)
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)'
+      ctx.lineWidth = 1
+      for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke() }
+      for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke() }
+    }
+
+    function finishDrawing() {
+      // --- Logo / Brand ---
     ctx.fillStyle = 'rgba(255,255,255,0.9)'
     ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif'
     ctx.fillText('SEPTOMIC', 32, 48)
@@ -141,6 +167,7 @@ export default function EPCardVisual({ card, onClose }) {
     link.download = `EP-Card-${card.CardId}.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
+    }
   }
 
   const isUnclaimed = card.CardStatus === 0 || card.CardStatus === '0'
@@ -150,9 +177,11 @@ export default function EPCardVisual({ card, onClose }) {
       {/* Visual card preview */}
       <div
         className="relative w-full max-w-[480px] rounded-2xl overflow-hidden select-none"
-        style={{
-          background: 'linear-gradient(135deg, #0a0a1a 0%, #0d1530 50%, #060610 100%)',
-          aspectRatio: '1.76',
+                style={{
+          background: themeUrl
+            ? `#0a0a1a url(${themeUrl}) center/cover no-repeat`
+            : 'linear-gradient(135deg, #0a0a1a 0%, #0d1530 50%, #060610 100%)',
+          aspectRatio: themeUrl ? (isPortrait ? '0.63' : '1.586') : '1.76',
           boxShadow: '0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)',
         }}
       >

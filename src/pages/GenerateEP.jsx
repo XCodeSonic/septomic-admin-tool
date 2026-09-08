@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,24 +12,50 @@ export default function GenerateEP() {
   // no manual input needed, and it's what admin/generate_card.php expects.
   const adminId = localStorage.getItem('userNum') || ''
 
-  const [amount, setAmount]   = useState('')
-  const [result, setResult]   = useState(null)
-  const [error, setError]     = useState('')
-  const [loading, setLoading] = useState(false)
+  const [amount, setAmount]     = useState('')
+  const [quantity, setQuantity] = useState('1')
+  const [themes, setThemes]     = useState([])
+  const [themeId, setThemeId]   = useState('')
+  const [result, setResult]     = useState(null)   // single card
+  const [batch, setBatch]       = useState(null)   // array of cards
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
+
+  useEffect(() => {
+    api.get('/admin/list_themes.php').then(res => {
+      if (res.data.success) {
+        setThemes(res.data.themes)
+        const def = res.data.themes.find(t => t.IsDefault)
+        if (def) setThemeId(String(def.ThemeID))
+      }
+    })
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    const qty = parseInt(quantity) || 1
     try {
-      // admin/generate_card.php expects { ep, adminId } and returns the
-      // card fields flat at the top level — a non-2xx status is how it
-      // signals failure, caught below.
-      const res = await api.post('/admin/generate_card.php', {
-        ep: parseInt(amount),
-        adminId: parseInt(adminId),
-      })
-      setResult(res.data)
+      if (qty > 1) {
+        // Bulk: same theme, same amount, unique CardId/PIN per card
+        const res = await api.post('/admin/generate_card_batch.php', {
+          ep: parseInt(amount),
+          adminId: parseInt(adminId),
+          themeId: themeId ? parseInt(themeId) : null,
+          quantity: qty,
+        })
+        setBatch(res.data.cards || [])
+        setResult(null)
+      } else {
+        const res = await api.post('/admin/generate_card.php', {
+          ep: parseInt(amount),
+          adminId: parseInt(adminId),
+          themeId: themeId ? parseInt(themeId) : null,
+        })
+        setResult(res.data)
+        setBatch(null)
+      }
     } catch (err) {
       setError(err?.response?.data?.message || 'Request failed')
     } finally {
@@ -39,7 +65,9 @@ export default function GenerateEP() {
 
   const reset = () => {
     setAmount('')
+    setQuantity('1')
     setResult(null)
+    setBatch(null)
     setError('')
   }
 
@@ -57,7 +85,7 @@ export default function GenerateEP() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {!result ? (
+            {!result && !batch ? (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3.5 py-2.5">
                   <span className="text-[11px] font-medium text-muted-foreground">Admin ID</span>
@@ -76,6 +104,37 @@ export default function GenerateEP() {
                   />
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">EP card theme</label>
+                  <select
+                    className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-[13px]"
+                    value={themeId}
+                    onChange={e => setThemeId(e.target.value)}
+                  >
+                    <option value="">Default theme</option>
+                    {themes.map(t => (
+                      <option key={t.ThemeID} value={t.ThemeID}>
+                        {t.ThemeName}{t.IsDefault ? ' (default)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Quantity (batch generate)</label>
+                  <Input
+                    placeholder="1"
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={quantity}
+                    onChange={e => setQuantity(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Generates this many cards with the same amount &amp; theme — each gets a unique Card ID and PIN.
+                  </p>
+                </div>
+
                 {error && (
                   <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-2.5 text-[13px] text-destructive">
                     {error}
@@ -83,7 +142,7 @@ export default function GenerateEP() {
                 )}
 
                 <Button type="submit" className="w-full" disabled={loading || !adminId}>
-                  {loading ? 'Generating…' : 'Generate card'}
+                  {loading ? 'Generating…' : (parseInt(quantity) > 1 ? `Generate ${quantity} cards` : 'Generate card')}
                 </Button>
 
                 {!adminId && (
@@ -95,7 +154,7 @@ export default function GenerateEP() {
             ) : (
               <div className="space-y-4">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] font-medium text-emerald-700">
-                  Card generated successfully.
+                  {batch ? `${batch.length} cards generated successfully.` : 'Card generated successfully.'}
                 </div>
                 <Button variant="outline" className="w-full" onClick={reset}>
                   <RotateCcw className="mr-1.5 size-3.5" /> Generate another
@@ -109,6 +168,10 @@ export default function GenerateEP() {
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 p-6 sm:p-10">
           {result ? (
             <EPCardVisual card={result} />
+          ) : batch ? (
+            <div className="grid w-full grid-cols-1 gap-6 sm:grid-cols-2">
+              {batch.map((c, i) => <EPCardVisual key={i} card={c} />)}
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-3 text-center">
               <CreditCard className="size-8 text-muted-foreground/40" strokeWidth={1.5} />
