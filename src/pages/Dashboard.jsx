@@ -1,11 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
-import { CreditCard, RefreshCw, ChevronLeft, ChevronRight, ChevronRight as ChevronRightSmall } from 'lucide-react'
+import { CreditCard, RefreshCw, ChevronLeft, ChevronRight, ChevronRight as ChevronRightSmall, Search, X } from 'lucide-react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import PageHeader from '@/components/layout/PageHeader'
 import EPCardVisual from './EPCardVisual'
+
+const SORT_OPTIONS = [
+  { value: 'generated_desc', label: 'Latest generated' },
+  { value: 'generated_asc',  label: 'Oldest generated' },
+  { value: 'claimed_desc',   label: 'Latest claimed' },
+  { value: 'claimed_asc',    label: 'Oldest claimed' },
+]
 
 const formatDate = (raw) => {
   if (!raw) return '—'
@@ -21,14 +28,28 @@ export default function Dashboard() {
   const [page, setPage]                 = useState(1)
   const [hasMore, setHasMore]           = useState(false)
   const [filter, setFilter]             = useState(null) // null=all, 0=unclaimed, 1=claimed
+  const [sort, setSort]                 = useState('generated_desc')
+  const [searchInput, setSearchInput]   = useState('') // what the user is typing, updates instantly
+  const [search, setSearch]             = useState('') // debounced value that actually triggers the fetch
   const [selectedCard, setSelectedCard] = useState(null)
   const limit = 20
+
+  // Debounce: wait 400ms after the user stops typing before updating
+  // `search`, which is the value fetchCards actually depends on.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim())
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   const fetchCards = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, limit })
+      const params = new URLSearchParams({ page, limit, sort })
       if (filter !== null) params.append('status', filter)
+      if (search !== '') params.append('search', search)
       // admin/topup_list.php returns { success, cards, page, hasMore, stats }
       // where stats = { total, unclaimed, claimed } computed across the
       // whole table, independent of the active filter/page.
@@ -43,13 +64,18 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }, [page, filter])
+  }, [page, filter, sort, search])
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchCards() }, [fetchCards])
 
   const handleFilter = (val) => {
     setFilter(val)
+    setPage(1)
+  }
+
+  const handleSort = (val) => {
+    setSort(val)
     setPage(1)
   }
 
@@ -85,39 +111,73 @@ export default function Dashboard() {
 
         {/* Table Card */}
         <Card className="py-0">
-          <CardHeader className="flex flex-col items-start gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <CardTitle className="flex items-center gap-2 text-[14px]">
-              <CreditCard className="size-[18px] text-[#0071e3]" strokeWidth={1.75} /> EP Cards
-            </CardTitle>
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <div className="flex flex-1 items-center gap-1 rounded-lg bg-muted p-1 sm:flex-none">
-                {[
-                  { label: 'All',       val: null },
-                  { label: 'Unclaimed', val: 0 },
-                  { label: 'Claimed',   val: 1 },
-                ].map(f => (
-                  <button
-                    key={f.label}
-                    className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition-all sm:flex-none ${
-                      filter === f.val
-                        ? 'bg-card text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                    onClick={() => handleFilter(f.val)}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+          <CardHeader className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:px-6">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2 text-[14px]">
+                <CreditCard className="size-[18px] text-[#0071e3]" strokeWidth={1.75} /> EP Cards
+              </CardTitle>
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <div className="flex flex-1 items-center gap-1 rounded-lg bg-muted p-1 sm:flex-none">
+                  {[
+                    { label: 'All',       val: null },
+                    { label: 'Unclaimed', val: 0 },
+                    { label: 'Claimed',   val: 1 },
+                  ].map(f => (
+                    <button
+                      key={f.label}
+                      className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition-all sm:flex-none ${
+                        filter === f.val
+                          ? 'bg-card text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      onClick={() => handleFilter(f.val)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
 
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={fetchCards}
-                disabled={loading}
-              >
-                <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
+                <select
+                  value={sort}
+                  onChange={(e) => handleSort(e.target.value)}
+                  className="h-8 rounded-md border border-border bg-card px-2 text-xs font-medium text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  {SORT_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={fetchCards}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Search — debounced 400ms, filters by Card ID */}
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search card ID… e.g. ZR0CF4673"
+                className="h-8 w-full rounded-md border border-border bg-card pl-8 pr-8 text-xs text-foreground shadow-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchInput(''); setSearch(''); setPage(1) }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
             </div>
           </CardHeader>
 
@@ -170,7 +230,14 @@ export default function Dashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-3.5 text-xs text-muted-foreground">{formatDate(card.DateGenerated)}</td>
-                        <td className="px-6 py-3.5 text-xs text-muted-foreground">{card.UserTopUp || '—'}</td>
+                        <td className="px-6 py-3.5 text-xs text-muted-foreground">
+                          {card.UserTopUp || '—'}
+                          {!isUnclaimed && card.DateClaimed && (
+                            <span className="mt-0.5 block text-[11px] text-muted-foreground/70">
+                              {formatDate(card.DateClaimed)}
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     )
                   })}
@@ -202,7 +269,9 @@ export default function Dashboard() {
                         {Number(card.EPValue).toLocaleString()} EP
                       </p>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {isUnclaimed ? 'Not yet claimed' : (card.UserTopUp || 'Claimed')}
+                        {isUnclaimed
+                          ? 'Not yet claimed'
+                          : `${card.UserTopUp || 'Claimed'}${card.DateClaimed ? ` · ${formatDate(card.DateClaimed)}` : ''}`}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
