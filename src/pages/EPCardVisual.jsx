@@ -162,11 +162,32 @@ export default function EPCardVisual({ card, onClose }) {
     ctx.roundRect(W - 80, H - 70, 50, 36, 6)
     ctx.stroke()
 
-    // Download
-    const link = document.createElement('a')
-    link.download = `EP-Card-${card.CardId}.png`
-    link.href = canvas.toDataURL('image/png')
-    link.click()
+          // Download — prefer the native share sheet on iOS/mobile (the
+      // `download` attribute is unreliable on iOS Safari and just opens
+      // the image instead of saving it). Falls back to the classic
+      // anchor-download approach everywhere else.
+      canvas.toBlob(async (blob) => {
+        if (!blob) return
+        const fileName = `EP-Card-${card.CardId}.png`
+        const file = new File([blob], fileName, { type: 'image/png' })
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: fileName })
+            return
+          } catch {
+            // user cancelled the share sheet, or share failed — fall
+            // through to the classic download below
+          }
+        }
+
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = fileName
+        link.href = url
+        link.click()
+        URL.revokeObjectURL(url)
+      }, 'image/png')
     }
   }
 

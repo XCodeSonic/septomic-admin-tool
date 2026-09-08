@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Sparkles, LogOut, PanelLeftClose, PanelLeft } from 'lucide-react'
+import { LayoutDashboard, Sparkles, Settings as SettingsIcon, LogOut, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Add new sections/items here as the tool grows.
 const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
   { to: '/generate-ep',  label: 'Generate EP', icon: Sparkles },
+  { to: '/settings',     label: 'Settings',    icon: SettingsIcon },
 ]
 
 export default function AppSidebar() {

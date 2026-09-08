@@ -58,10 +58,21 @@ export default function EPCardTheme() {
     loadThemes()
   }
 
+  const [deleteError, setDeleteError] = useState('')
+
   const remove = async (themeId) => {
     if (!confirm('Delete this theme?')) return
-    await api.post('/admin/delete_theme.php', { themeId })
-    loadThemes()
+    setDeleteError('')
+    try {
+      const res = await api.post('/admin/delete_theme.php', { themeId })
+      if (!res.data?.success) {
+        setDeleteError(res.data?.message || 'Delete failed')
+        return
+      }
+      loadThemes()
+    } catch (err) {
+      setDeleteError(err?.response?.data?.message || 'Delete failed — check server')
+    }
   }
 
   return (
@@ -116,6 +127,11 @@ export default function EPCardTheme() {
 
         <div>
           <h3 className="mb-3 text-[13px] font-medium text-foreground">Uploaded themes</h3>
+          {deleteError && (
+            <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/10 px-3.5 py-2.5 text-[13px] text-destructive">
+              {deleteError}
+            </div>
+          )}
           {loading ? (
             <p className="text-[13px] text-muted-foreground">Loading…</p>
           ) : themes.length === 0 ? (
