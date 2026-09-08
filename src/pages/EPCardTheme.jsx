@@ -128,7 +128,7 @@ export default function EPCardTheme() {
               {themes.map(t => (
                 <Card key={t.ThemeID} className="overflow-hidden">
                   <img
-                    src={`http://154.7.228.161${t.FileUrl}`}
+                    src={`https://xcodeepoints.xyz${t.FileUrl}`}
                     alt={t.ThemeName}
                     className="aspect-[1.586/1] w-full object-cover data-[orientation=portrait]:aspect-[1/1.586]"
                     data-orientation={t.Orientation}

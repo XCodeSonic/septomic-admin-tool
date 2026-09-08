@@ -15,8 +15,8 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    allowedHosts: [
-      'https://publishing-communities-wolf-perfectly.trycloudflare.com',
+        allowedHosts: [
+      'publishing-communities-wolf-perfectly.trycloudflare.com',
       '.trycloudflare.com',
     ],
   },

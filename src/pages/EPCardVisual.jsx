@@ -17,7 +17,7 @@ const formatDate = (raw) => {
 export default function EPCardVisual({ card, onClose }) {
   const canvasRef = useRef(null)
   const isPortrait = card.Orientation === 'portrait'
-  const themeUrl = card.ThemeFile ? `http://154.7.228.161${card.ThemeFile}` : null
+  const themeUrl = card.ThemeFile ? `https://xcodeepoints.xyz${card.ThemeFile}` : null
 
   const downloadCard = () => {
     const canvas = canvasRef.current
