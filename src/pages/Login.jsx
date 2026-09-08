@@ -20,6 +20,14 @@ export default function Login() {
   const [form, setForm]       = useState({ username: '', password: '' })
   const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
+  const [sessionMsg] = useState(() => {
+    const reason = localStorage.getItem('logoutReason')
+    if (reason === 'expired') {
+      localStorage.removeItem('logoutReason')
+      return 'You were logged out because your session expired. Please sign in again.'
+    }
+    return ''
+  })
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -69,6 +77,11 @@ export default function Login() {
         {/* Form card */}
         <div className="bg-white rounded-2xl border border-gray-200/80 shadow-sm shadow-black/[0.04] p-7">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {sessionMsg && (
+              <div className="rounded-lg bg-amber-50 border border-amber-100 px-3.5 py-2.5 text-[13px] text-amber-700">
+                {sessionMsg}
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.06em]">
                 Username
